@@ -1,4 +1,29 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Cloudformation template for AVL Pipeline infrastructure'
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+        - Label:
+            default: Network Configuration
+          Parameters:
+             - VPCID
+             - VPCCIDR
+             - PrivateSubnetID
+             - PrivateSubnetIDZ2
+             - PublicSubnetID
+             - AdminPrivateSubnetID
+             - RemoteAccessCIDR
+        - Label:
+            default: Amazon EC2 Configuration
+          Parameters:
+              - KeyPairName
+              - PipelineS3BucketName
+        - Label:
+            default: Database Configuration
+          Parameters:
+              - MySQLUserAdmin
+              - MySQLPasswordAdmin
+
 Parameters:
   VPCID:
       Description: ID of your existing VPC for deployment
@@ -16,7 +41,10 @@ Parameters:
       Description: ID of private subnet 1 in Availability Zone 2 for the RDS (e.g.,  subnet-a0246dcd)
       Type: AWS::EC2::Subnet::Id
   PublicSubnetID:
-      Description: ID of public subnet 1 in Availability Zone 1 for the ELB load balancer(e.g., subnet-9bc642ac)
+      Description: ID of public subnet 1 in Availability Zone 1 for the Bastion (e.g., subnet-9bc642ac)
+      Type: AWS::EC2::Subnet::Id
+  AdminPrivateSubnetID:
+      Description: ID of Admin private subnet in Availability Zone 1 (e.g.,  subnet-a0246dcd)
       Type: AWS::EC2::Subnet::Id
   RemoteAccessCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
@@ -38,6 +66,15 @@ Parameters:
       MinLength: '8'
       AllowedPattern: ^[^ \\']+$
       NoEcho: 'true'
+  PipelineS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Pipeline bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Description: S3 bucket name for the Pipeline assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    Type: String
 Resources:
   sgsshpipelinesecgv2:
     Type: AWS::EC2::SecurityGroup
@@ -73,6 +110,10 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: !Ref 'VPCCIDR'
+        - IpProtocol: tcp
+          FromPort: 1024
+          ToPort: 65535
+          CidrIp: !Ref 'VPCCIDR'
   sgwebbastionpipelinesecgv2:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -97,6 +138,10 @@ Resources:
           FromPort: 3389
           ToPort: 3389
           CidrIp: !Ref 'VPCCIDR'
+        - IpProtocol: tcp
+          FromPort: 1024
+          ToPort: 65535
+          CidrIp: !Ref 'VPCCIDR'
   sgmysqlpipelinesecgv2:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -116,6 +161,8 @@ Resources:
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t3.medium
       KeyName: !Ref 'KeyPairName'
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
       Monitoring: 'false'
       Tags:
       - Key: Name
@@ -140,6 +187,8 @@ Resources:
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t3.medium
       KeyName: !Ref KeyPairName
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
       Monitoring: 'false'
       Tags:
       - Key: Name
@@ -164,6 +213,8 @@ Resources:
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t3.medium
       KeyName: !Ref KeyPairName
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
       Monitoring: 'false'
       Tags:
       - Key: Name
@@ -188,6 +239,8 @@ Resources:
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t3.2xlarge
       KeyName: !Ref KeyPairName
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
       Monitoring: 'false'
       Tags:
       - Key: Name
@@ -211,6 +264,8 @@ Resources:
       ImageId: ami-04ca2d0801450d495
       InstanceType: t2.medium
       KeyName: !Ref KeyPairName
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
       Monitoring: 'false'
       Tags:
       - Key: Name
@@ -230,6 +285,8 @@ Resources:
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t2.small
       KeyName: !Ref KeyPairName
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
       Monitoring: 'false'
       Tags:
       - Key: Name
@@ -306,3 +363,116 @@ Resources:
       Tags:
       - Key: Name
         Value: jenkins-pipelineEBS
+  GogsPipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgsshpipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  GogsPipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref GogsPipeline
+        NetworkInterfaceId: !Ref GogsPipelineAdminNI
+  JenkinsPipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgsshpipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  JenkinsPipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref JenkinsPipeline
+        NetworkInterfaceId: !Ref JenkinsPipelineAdminNI
+  NexusPipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgsshpipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  NexusPipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref NexusPipeline
+        NetworkInterfaceId: !Ref NexusPipelineAdminNI
+  SonarqubePipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgsshpipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  SonarqubePipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref SonarqubePipeline
+        NetworkInterfaceId: !Ref SonarqubePipelineAdminNI
+  SeleniumPipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgrdppipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  SeleniumPipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref SeleniumPipeline
+        NetworkInterfaceId: !Ref SeleniumPipelineAdminNI
+  BastionPipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgsshbastionpipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  BastionPipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref BastionPipeline
+        NetworkInterfaceId: !Ref BastionPipelineAdminNI
+  EC2RolePipeline:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "EC2RolePipeline"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: EC2ABucketPolicyPipeline
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${PipelineS3BucketName}'
+                  - !Sub 'arn:aws:s3:::${PipelineS3BucketName}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${PipelineS3BucketName}'
+                  - !Sub 'arn:aws:s3:::${PipelineS3BucketName}/*'
+  EC2InstanceProfilePipeline:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        -
+          Ref: "EC2RolePipeline"
