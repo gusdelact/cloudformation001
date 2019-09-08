@@ -120,6 +120,9 @@ Resources:
       Tags:
       - Key: Name
         Value: gogs-pipelinev2
+      Volumes:
+      - Device: "/dev/sdf"
+        VolumeId: !Ref gogspipelineebs
       NetworkInterfaces:
       - DeleteOnTermination: 'true'
         Description: Primary network interface
@@ -136,11 +139,14 @@ Resources:
       EbsOptimized: 'true'
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t3.medium
-      KeyName: awsgus
+      KeyName: !Ref KeyPairName
       Monitoring: 'false'
       Tags:
       - Key: Name
         Value: nexus-pipelinev2
+      Volumes:
+       - Device: "/dev/sdf"
+         VolumeId: !Ref nexuspipelineebs
       NetworkInterfaces:
       - DeleteOnTermination: 'true'
         Description: Primary network interface
@@ -157,11 +163,14 @@ Resources:
       EbsOptimized: 'true'
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t3.medium
-      KeyName: awsgus
+      KeyName: !Ref KeyPairName
       Monitoring: 'false'
       Tags:
       - Key: Name
         Value: sonarqube-pipelinev2
+      Volumes:
+       - Device: "/dev/sdf"
+         VolumeId: !Ref sonarqubepipelineebs
       NetworkInterfaces:
       - DeleteOnTermination: 'true'
         Description: Primary network interface
@@ -170,7 +179,7 @@ Resources:
         GroupSet:
         - Ref: sgsshpipelinesecgv2
         - Ref: sgwebpipelinesecgv2
-  JenkisPipeline:
+  JenkinsPipeline:
     Type: AWS::EC2::Instance
     Properties:
       DisableApiTermination: 'false'
@@ -178,11 +187,14 @@ Resources:
       EbsOptimized: 'true'
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t3.2xlarge
-      KeyName: awsgus
+      KeyName: !Ref KeyPairName
       Monitoring: 'false'
       Tags:
       - Key: Name
-        Value: jenkis-pipelinev2
+        Value: jenkins-pipelinev2
+      Volumes:
+       - Device: "/dev/sdf"
+         VolumeId: !Ref jenkinspipelineebs
       NetworkInterfaces:
       - DeleteOnTermination: 'true'
         Description: Primary network interface
@@ -196,9 +208,9 @@ Resources:
     Properties:
       DisableApiTermination: 'false'
       InstanceInitiatedShutdownBehavior: stop
-      ImageId: ami-0c322300a1dd5dc79
+      ImageId: ami-04ca2d0801450d495
       InstanceType: t2.medium
-      KeyName: awsgus
+      KeyName: !Ref KeyPairName
       Monitoring: 'false'
       Tags:
       - Key: Name
@@ -217,7 +229,7 @@ Resources:
       InstanceInitiatedShutdownBehavior: stop
       ImageId: ami-0c322300a1dd5dc79
       InstanceType: t2.small
-      KeyName: awsgus
+      KeyName: !Ref KeyPairName
       Monitoring: 'false'
       Tags:
       - Key: Name
@@ -258,3 +270,39 @@ Resources:
       SubnetIds:
       - !Ref 'PrivateSubnetID'
       - !Ref 'PrivateSubnetIDZ2'
+  gogspipelineebs:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: us-east-1a
+      Size: '100'
+      VolumeType: gp2
+      Tags:
+      - Key: Name
+        Value: gogs-pipelineEBS
+  sonarqubepipelineebs:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: us-east-1a
+      Size: '100'
+      VolumeType: gp2
+      Tags:
+      - Key: Name
+        Value: sonarqube-pipelineEBS
+  nexuspipelineebs:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: us-east-1a
+      Size: '750'
+      VolumeType: gp2
+      Tags:
+      - Key: Name
+        Value: nexus-pipelineEBS
+  jenkinspipelineebs:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: us-east-1a
+      Size: '750'
+      VolumeType: gp2
+      Tags:
+      - Key: Name
+        Value: jenkins-pipelineEBS
