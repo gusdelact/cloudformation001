@@ -1,0 +1,260 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  VPCID:
+      Description: ID of your existing VPC for deployment
+      Type: AWS::EC2::VPC::Id
+  VPCCIDR:
+      AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+      ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+      Default: 10.0.0.0/16
+      Description: CIDR block for the VPC
+      Type: String
+  PrivateSubnetID:
+      Description: ID of private subnet 1 in Availability Zone 1 for the Workload (e.g.,  subnet-a0246dcd)
+      Type: AWS::EC2::Subnet::Id
+  PrivateSubnetIDZ2:
+      Description: ID of private subnet 1 in Availability Zone 2 for the RDS (e.g.,  subnet-a0246dcd)
+      Type: AWS::EC2::Subnet::Id
+  PublicSubnetID:
+      Description: ID of public subnet 1 in Availability Zone 1 for the ELB load balancer(e.g., subnet-9bc642ac)
+      Type: AWS::EC2::Subnet::Id
+  RemoteAccessCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
+    Description: The CIDR IP range that is permitted to access the instances We recommend
+      that you set this value to a trusted IP range.
+    Type: String
+  KeyPairName:
+      Description: Name of an existing EC2 key pair. All instances will launch with
+        this key pair.
+      Type: AWS::EC2::KeyPair::KeyName
+  MySQLUserAdmin:
+      Description: Admin userid (minimum 4 characters)
+      Type: String
+      MinLength: '4'
+  MySQLPasswordAdmin:
+      Description: Admin password (minimum 8 characters)
+      Type: String
+      MinLength: '8'
+      AllowedPattern: ^[^ \\']+$
+      NoEcho: 'true'
+Resources:
+  sgsshpipelinesecgv2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Grupo Seguridad SSH Infraestructura Pipeline'
+      VpcId: !Ref 'VPCID'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref 'VPCCIDR'
+  sgsshbastionpipelinesecgv2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Grupo Seguridad ssh Bastion '
+      VpcId: !Ref 'VPCID'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref 'RemoteAccessCIDR'
+  sgwebpipelinesecgv2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Grupo Seguridad protocolos Web '
+      VpcId: !Ref 'VPCID'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref 'VPCCIDR'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref 'VPCCIDR'
+  sgwebbastionpipelinesecgv2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Grupo Seguridad protocolos Web '
+      VpcId: !Ref 'VPCID'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref 'RemoteAccessCIDR'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref 'RemoteAccessCIDR'
+  sgrdppipelinesecgv2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Grupo Seguridad RDP'
+      VpcId: !Ref 'VPCID'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref 'VPCCIDR'
+  sgmysqlpipelinesecgv2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Grupo Seguridad MySQL'
+      VpcId: !Ref 'VPCID'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: !Ref 'VPCCIDR'
+  GogsPipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      EbsOptimized: 'true'
+      ImageId: ami-0c322300a1dd5dc79
+      InstanceType: t3.medium
+      KeyName: !Ref 'KeyPairName'
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: gogs-pipelinev2
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PrivateSubnetID'
+        GroupSet:
+        - Ref: sgsshpipelinesecgv2
+        - Ref: sgwebpipelinesecgv2
+  NexusPipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      EbsOptimized: 'true'
+      ImageId: ami-0c322300a1dd5dc79
+      InstanceType: t3.medium
+      KeyName: awsgus
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: nexus-pipelinev2
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PrivateSubnetID'
+        GroupSet:
+        - Ref: sgsshpipelinesecgv2
+        - Ref: sgwebpipelinesecgv2
+  SonarqubePipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      EbsOptimized: 'true'
+      ImageId: ami-0c322300a1dd5dc79
+      InstanceType: t3.medium
+      KeyName: awsgus
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: sonarqube-pipelinev2
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PrivateSubnetID'
+        GroupSet:
+        - Ref: sgsshpipelinesecgv2
+        - Ref: sgwebpipelinesecgv2
+  JenkisPipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      EbsOptimized: 'true'
+      ImageId: ami-0c322300a1dd5dc79
+      InstanceType: t3.2xlarge
+      KeyName: awsgus
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: jenkis-pipelinev2
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PrivateSubnetID'
+        GroupSet:
+        - Ref: sgsshpipelinesecgv2
+        - Ref: sgwebpipelinesecgv2
+  SeleniumPipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      ImageId: ami-0c322300a1dd5dc79
+      InstanceType: t2.medium
+      KeyName: awsgus
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: selenium-pipelinev2
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PrivateSubnetID'
+        GroupSet:
+        - Ref: sgrdppipelinesecgv2
+  BastionPipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      ImageId: ami-0c322300a1dd5dc79
+      InstanceType: t2.small
+      KeyName: awsgus
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: bastion-pipelinev2
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PublicSubnetID'
+        GroupSet:
+        - Ref: sgsshbastionpipelinesecgv2
+        - Ref: sgwebbastionpipelinesecgv2
+        AssociatePublicIpAddress: 'true'
+  RDSMySqlPipeline:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: '200'
+      AllowMajorVersionUpgrade: 'false'
+      AutoMinorVersionUpgrade: 'true'
+      DBInstanceClass: db.m5.large
+      Port: '3306'
+      StorageType: gp2
+      BackupRetentionPeriod: '7'
+      MasterUsername: !Ref 'MySQLUserAdmin'
+      MasterUserPassword: !Ref 'MySQLPasswordAdmin'
+      DBName: MyDatabase
+      Engine: mysql
+      EngineVersion: 5.7.22
+      LicenseModel: general-public-license
+      DBSubnetGroupName:
+        Ref: dbsubnetmysqlavlsubnetgr
+      VPCSecurityGroups:
+      - Ref: sgmysqlpipelinesecgv2
+  dbsubnetmysqlavlsubnetgr:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Grupo Subnet AVL MySQL
+      SubnetIds:
+      - !Ref 'PrivateSubnetID'
+      - !Ref 'PrivateSubnetIDZ2'
