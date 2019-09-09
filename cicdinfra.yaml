@@ -412,6 +412,8 @@ Resources:
       Tags:
       - Key: Name
         Value: gogs-pipelineEBS
+      - Key: Respaldo
+        Value: avl
   sonarqubepipelineebs:
     Type: AWS::EC2::Volume
     Properties:
@@ -421,6 +423,8 @@ Resources:
       Tags:
       - Key: Name
         Value: sonarqube-pipelineEBS
+      - Key: Respaldo
+        Value: avl
   nexuspipelineebs:
     Type: AWS::EC2::Volume
     Properties:
@@ -430,6 +434,8 @@ Resources:
       Tags:
       - Key: Name
         Value: nexus-pipelineEBS
+      - Key: Respaldo
+        Value: avl
   jenkinspipelineebs:
     Type: AWS::EC2::Volume
     Properties:
@@ -439,6 +445,8 @@ Resources:
       Tags:
       - Key: Name
         Value: jenkins-pipelineEBS
+      - Key: Respaldo
+        Value: avl
   elkpipelineebs:
     Type: AWS::EC2::Volume
     Properties:
@@ -448,6 +456,8 @@ Resources:
       Tags:
       - Key: Name
         Value: elk-pipelineEBS
+      - Key: Respaldo
+        Value: avl
   okdpipelineebs:
     Type: AWS::EC2::Volume
     Properties:
@@ -457,6 +467,8 @@ Resources:
       Tags:
       - Key: Name
         Value: okd-pipelineEBS
+      - Key: Respaldo
+        Value: avl
   appscanpipelineebs:
     Type: AWS::EC2::Volume
     Properties:
@@ -465,7 +477,9 @@ Resources:
       VolumeType: gp2
       Tags:
       - Key: Name
-        Value: fortify-pipelineEBS
+        Value: appscan-pipelineEBS
+      - Key: Respaldo
+        Value: avl
   GogsPipelineAdminNI:
      Type: AWS::EC2::NetworkInterface
      Properties:
@@ -574,6 +588,41 @@ Resources:
         DeviceIndex: "1"
         InstanceId: !Ref BastionPipeline
         NetworkInterfaceId: !Ref BastionPipelineAdminNI
+  DataLifecycleManagerRolePipeline:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "DataLifecycleManagerRolePipeline"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "dlm.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: DataLifecycleManagerPolicyPipeline
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateSnapshot
+                  - ec2:CreateSnapshots
+                  - ec2:DeleteSnapshot
+                  - ec2:DescribeInstances
+                  - ec2:DescribeVolumes
+                  - ec2:DescribeSnapshots
+                Resource:
+                  - '*'
+              - Effect: Allow
+                Action:
+                  - ec2:CreateTags
+                Resource:
+                  - 'arn:aws:ec2:*::snapshot/*'
   EC2RolePipeline:
     Type: AWS::IAM::Role
     Properties:
