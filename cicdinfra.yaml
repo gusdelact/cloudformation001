@@ -329,6 +329,30 @@ Resources:
         GroupSet:
         - Ref: sgsshpipelinesecgv2
         - Ref: sgwebpipelinesecgv2
+  FortifyPipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      ImageId: ami-04ca2d0801450d495
+      InstanceType: t3.xlarge
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: fortify-pipelinev2
+      Volumes:
+       - Device: "/dev/sdf"
+         VolumeId: !Ref fortifypipelineebs
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PrivateSubnetID'
+        GroupSet:
+        - Ref: sgrdppipelinesecgv2
   BastionPipeline:
     Type: AWS::EC2::Instance
     Properties:
@@ -433,6 +457,15 @@ Resources:
       Tags:
       - Key: Name
         Value: okd-pipelineEBS
+  fortifypipelineebs:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: us-east-1a
+      Size: '250'
+      VolumeType: gp2
+      Tags:
+      - Key: Name
+        Value: fortify-pipelineEBS
   GogsPipelineAdminNI:
      Type: AWS::EC2::NetworkInterface
      Properties:
@@ -517,6 +550,18 @@ Resources:
         DeviceIndex: "1"
         InstanceId: !Ref OKDPipeline
         NetworkInterfaceId: !Ref OKDPipelineAdminNI
+  FortifyPipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgsshpipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  FortifyPipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref FortifyPipeline
+        NetworkInterfaceId: !Ref FortifyPipelineAdminNI
   BastionPipelineAdminNI:
      Type: AWS::EC2::NetworkInterface
      Properties:
