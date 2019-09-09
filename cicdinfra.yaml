@@ -664,3 +664,32 @@ Resources:
       Roles:
         -
           Ref: "EC2RolePipeline"
+  BasicLifecyclePolicy:
+    Type: "AWS::DLM::LifecyclePolicy"
+    Properties:
+      Description: "Lifecycle Policy using CloudFormation"
+      State: "ENABLED"
+      ExecutionRoleArn: !GetAtt DataLifecycleManagerRolePipeline.Arn
+      PolicyDetails:
+        ResourceTypes:
+          - "VOLUME"
+        TargetTags:
+          -
+            Key: "respaldo"
+            Value: "AVL"
+        Schedules:
+          -
+            Name: "Daily Snapshots"
+            TagsToAdd:
+              -
+                Key: "type"
+                Value: "DailySnapshot"
+
+            CreateRule:
+              Interval: 24
+              IntervalUnit: "HOURS"
+              Times:
+                - "23:00"
+            RetainRule:
+              Count: 2
+            CopyTags: true
