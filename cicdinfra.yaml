@@ -329,7 +329,7 @@ Resources:
         GroupSet:
         - Ref: sgsshpipelinesecgv2
         - Ref: sgwebpipelinesecgv2
-  FortifyPipeline:
+  AppScanPipeline:
     Type: AWS::EC2::Instance
     Properties:
       DisableApiTermination: 'false'
@@ -342,10 +342,10 @@ Resources:
       Monitoring: 'false'
       Tags:
       - Key: Name
-        Value: fortify-pipelinev2
+        Value: appscan-pipelinev2
       Volumes:
-       - Device: "/dev/sdf"
-         VolumeId: !Ref fortifypipelineebs
+       - Device: "xvdf"
+         VolumeId: !Ref appscanpipelineebs
       NetworkInterfaces:
       - DeleteOnTermination: 'true'
         Description: Primary network interface
@@ -443,7 +443,7 @@ Resources:
     Type: AWS::EC2::Volume
     Properties:
       AvailabilityZone: us-east-1a
-      Size: '500'
+      Size: '1024'
       VolumeType: gp2
       Tags:
       - Key: Name
@@ -457,7 +457,7 @@ Resources:
       Tags:
       - Key: Name
         Value: okd-pipelineEBS
-  fortifypipelineebs:
+  appscanpipelineebs:
     Type: AWS::EC2::Volume
     Properties:
       AvailabilityZone: us-east-1a
@@ -550,18 +550,18 @@ Resources:
         DeviceIndex: "1"
         InstanceId: !Ref OKDPipeline
         NetworkInterfaceId: !Ref OKDPipelineAdminNI
-  FortifyPipelineAdminNI:
+  AppScanPipelineAdminNI:
      Type: AWS::EC2::NetworkInterface
      Properties:
        GroupSet:
          - !Ref 'sgsshpipelinesecgv2'
        SubnetId: !Ref 'AdminPrivateSubnetID'
-  FortifyPipelineAdminAttach:
+  AppScanPipelineAdminAttach:
       Type: AWS::EC2::NetworkInterfaceAttachment
       Properties:
         DeviceIndex: "1"
-        InstanceId: !Ref FortifyPipeline
-        NetworkInterfaceId: !Ref FortifyPipelineAdminNI
+        InstanceId: !Ref AppScanPipeline
+        NetworkInterfaceId: !Ref AppScanPipelineAdminNI
   BastionPipelineAdminNI:
      Type: AWS::EC2::NetworkInterface
      Properties:
