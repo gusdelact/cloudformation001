@@ -277,6 +277,58 @@ Resources:
         SubnetId: !Ref 'PrivateSubnetID'
         GroupSet:
         - Ref: sgrdppipelinesecgv2
+  ELKPipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      EbsOptimized: 'true'
+      ImageId: ami-0c322300a1dd5dc79
+      InstanceType: t3.2xlarge
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: elk-pipelinev2
+      Volumes:
+       - Device: "/dev/sdf"
+         VolumeId: !Ref elkpipelineebs
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PrivateSubnetID'
+        GroupSet:
+        - Ref: sgsshpipelinesecgv2
+        - Ref: sgwebpipelinesecgv2
+  OKDPipeline:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      EbsOptimized: 'true'
+      ImageId: ami-0c322300a1dd5dc79
+      InstanceType: t3.2xlarge
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile :
+         Ref: EC2InstanceProfilePipeline
+      Monitoring: 'false'
+      Tags:
+      - Key: Name
+        Value: okd-pipelinev2
+      Volumes:
+       - Device: "/dev/sdf"
+         VolumeId: !Ref okdpipelineebs
+      NetworkInterfaces:
+      - DeleteOnTermination: 'true'
+        Description: Primary network interface
+        DeviceIndex: 0
+        SubnetId: !Ref 'PrivateSubnetID'
+        GroupSet:
+        - Ref: sgsshpipelinesecgv2
+        - Ref: sgwebpipelinesecgv2
   BastionPipeline:
     Type: AWS::EC2::Instance
     Properties:
@@ -363,6 +415,24 @@ Resources:
       Tags:
       - Key: Name
         Value: jenkins-pipelineEBS
+  elkpipelineebs:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: us-east-1a
+      Size: '500'
+      VolumeType: gp2
+      Tags:
+      - Key: Name
+        Value: elk-pipelineEBS
+  okdpipelineebs:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: us-east-1a
+      Size: '500'
+      VolumeType: gp2
+      Tags:
+      - Key: Name
+        Value: okd-pipelineEBS
   GogsPipelineAdminNI:
      Type: AWS::EC2::NetworkInterface
      Properties:
@@ -423,6 +493,30 @@ Resources:
         DeviceIndex: "1"
         InstanceId: !Ref SeleniumPipeline
         NetworkInterfaceId: !Ref SeleniumPipelineAdminNI
+  ELKPipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgsshpipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  ELKPipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref ELKPipeline
+        NetworkInterfaceId: !Ref ELKPipelineAdminNI
+  OKDPipelineAdminNI:
+     Type: AWS::EC2::NetworkInterface
+     Properties:
+       GroupSet:
+         - !Ref 'sgsshpipelinesecgv2'
+       SubnetId: !Ref 'AdminPrivateSubnetID'
+  OKDPipelineAdminAttach:
+      Type: AWS::EC2::NetworkInterfaceAttachment
+      Properties:
+        DeviceIndex: "1"
+        InstanceId: !Ref OKDPipeline
+        NetworkInterfaceId: !Ref OKDPipelineAdminNI
   BastionPipelineAdminNI:
      Type: AWS::EC2::NetworkInterface
      Properties:
